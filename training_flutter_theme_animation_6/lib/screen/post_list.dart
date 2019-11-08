@@ -1,8 +1,8 @@
 import 'dart:convert';
+import 'package:flare_flutter/flare_actor.dart';
 import 'package:scoped_model/scoped_model.dart';
 import 'package:flutter/material.dart';
 import 'package:training_flutter/animation/fading_circle.dart';
-import 'package:training_flutter/animation/pouring_hour_glass.dart';
 import 'package:training_flutter/main_models/main_model.dart';
 import 'package:training_flutter/screen/create_post.dart';
 import 'package:training_flutter/screen/post_detail.dart';
@@ -11,6 +11,7 @@ import 'package:training_flutter/data_sqlite/database_helper.dart';
 import 'package:training_flutter/data_sqlite/query/post_query.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:training_flutter/theme/color.dart';
+import 'dart:math' as math;
 
 class PostList extends StatefulWidget {
   @override
@@ -329,16 +330,16 @@ class _PostListState extends State<PostList> {
       return ListView.builder(
           itemCount: _postListData.length,
           itemBuilder: (context, index) {
-            return  ListTile(
-              title:  Card(
-                elevation: 2,
+            return GestureDetector(
+              child: Card(
+                elevation: 4.0,
+                margin: EdgeInsets.all(10.0),
                 child: Container(
                   padding: const EdgeInsets.all(10.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           // Title
                           Expanded(
@@ -379,12 +380,53 @@ class _PostListState extends State<PostList> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           // Image
-                          Container(
-                            height: 100,
-                            width: 100,
-                            child: Image.memory(
-                                Base64Decoder().convert(_postListData[index].image),
-                                fit: BoxFit.contain
+                          Hero(
+                            tag: "${_postListData[index].id}",
+                            flightShuttleBuilder: (
+                              BuildContext flightContext,
+                              Animation<double> animation,
+                              HeroFlightDirection flightDirection,
+                              BuildContext fromHeroContext,
+                              BuildContext toHeroContext,
+                            ) {
+                              final Hero toHero = toHeroContext.widget;
+
+                              return ScaleTransition(
+                                scale: animation.drive(
+                                  Tween<double>(begin: 0.0, end: 1.0).chain(
+                                    CurveTween(
+                                      curve: Interval(0.0, 1.0,
+                                          curve: PeakQuadraticCurve()
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                child: flightDirection == HeroFlightDirection.push
+                                    ? RotationTransition(
+                                        turns: animation,
+                                        child: toHero.child,
+                                    )
+                                    : FadeTransition(
+                                        opacity: animation.drive(
+                                          Tween<double>(begin: 0.0, end: 1.0).chain(
+                                            CurveTween(
+                                              curve: Interval(0.0, 1.0,
+                                                  curve: ValleyQuadraticCurve()
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        child: toHero.child,
+                                    ),
+                              );
+                            },
+                            child: Container(
+                              height: 100.0,
+                              width: 100.0,
+                              child: Image.memory(
+                                  Base64Decoder().convert(_postListData[index].image),
+                                  fit: BoxFit.contain
+                              ),
                             ),
                           ),
 
@@ -412,61 +454,61 @@ class _PostListState extends State<PostList> {
           }
       );
     } else {
-      return  ListTile(
-        title:  Card(
-          elevation: 2,
-          child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                  _isLoading
-                  ? Expanded(
-                      child: Column(
-                        children: <Widget>[
-                          Text(
-                            'Loading',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 24,
-                            ),
-                          ),
-                          Expanded(
-                            child: SpinKitFadingCircle(
-                              itemBuilder: (_, int index) {
-                                return DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: index.isEven ? kPostPink100 : kPostPink400),
-                                );
-                              },
-                              size: 100.0,
-                            ),
-                          ),
-                        ],
+      return Card(
+        elevation: 4.0,
+        margin: EdgeInsets.all(10.0),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _isLoading
+              ? Expanded(
+                  child: Column(
+                    children: <Widget>[
+                      Text(
+                        'Loading',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                        ),
                       ),
-                    )
-                  : Expanded(
-                    child: Column(
-                      children: <Widget>[
-                        Text(
-                          'No data',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24,
-                          ),
+                      Expanded(
+                        child: SpinKitFadingCircle(
+                          itemBuilder: (_, int index) {
+                            return DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: index.isEven ? kPostPink100 : kPostPink400
+                              ),
+                            );
+                          },
+                          size: 100.0,
                         ),
-                        Expanded(
-                          child: SpinKitPouringHourglass(
-                            color: kPostPink300,
-                            size: 100.0,
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                )
+              : Expanded(
+                child: Column(
+                  children: <Widget>[
+                    Text(
+                      'No data',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                      ),
                     ),
-                  )
-              ],
-            ),
+                    Expanded(
+                      child: FlareActor(
+                        'assets/nodata.flr',
+                        animation: 'idle',
+                      )
+                    )
+                  ],
+                ),
+              )
+            ],
           ),
         ),
       );
@@ -678,4 +720,21 @@ class _PostListState extends State<PostList> {
     );
   }
 
+}
+
+
+class ValleyQuadraticCurve extends Curve {
+  @override
+  double transform(double t) {
+    assert(t >= 0.0 && t <= 1.0);
+    return 4 * math.pow(t - 0.5, 2);
+  }
+}
+
+class PeakQuadraticCurve extends Curve {
+  @override
+  double transform(double t) {
+    assert(t >= 0.0 && t <= 1.0);
+    return -15 * math.pow(t, 2) + 15 * t + 1;
+  }
 }

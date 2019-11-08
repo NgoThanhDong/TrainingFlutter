@@ -47,12 +47,17 @@ class PostDetail extends StatelessWidget {
                           SizedBox(height: 10.0),
 
                           // Images post
-                          Container(
-                            width: 360.0,
-                            height: 240.0,
-                            child: Image.memory(
-                                Base64Decoder().convert(post.image),
-                                fit: BoxFit.contain
+                          Hero(
+                            tag: "${post.id}",
+                            child: Center(
+                              child: Container(
+                                width: 360.0,
+                                height: 240.0,
+                                child: Image.memory(
+                                    Base64Decoder().convert(post.image),
+                                    fit: BoxFit.contain
+                                ),
+                              ),
                             ),
                           ),
 
