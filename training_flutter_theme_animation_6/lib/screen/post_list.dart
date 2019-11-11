@@ -3,6 +3,7 @@ import 'package:flare_flutter/flare_actor.dart';
 import 'package:scoped_model/scoped_model.dart';
 import 'package:flutter/material.dart';
 import 'package:training_flutter/animation/fading_circle.dart';
+import 'package:training_flutter/animation/slide_right_route.dart';
 import 'package:training_flutter/main_models/main_model.dart';
 import 'package:training_flutter/screen/create_post.dart';
 import 'package:training_flutter/screen/post_detail.dart';
@@ -448,7 +449,10 @@ class _PostListState extends State<PostList> {
               ),
 
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => PostDetail(post: _postListData[index])));
+                Navigator.push(
+                  context,
+                  SlideRightRoute(widget: PostDetail(post: _postListData[index])),
+                );
               },
             );
           }
@@ -597,9 +601,10 @@ class _PostListState extends State<PostList> {
 
   // Redirect to Create/Edit post screen and update all post list
   void _navigateToDetail(String title, Post post) async {
-    bool result = await Navigator.push(context, MaterialPageRoute(builder: (context) {
-      return CreatePost(title, post);
-    }));
+    var result = await Navigator.push(
+      context,
+      SlideRightRoute(widget: CreatePost(title, post)),
+    );
 
     if (result == true) {
       updateListView();
@@ -668,7 +673,7 @@ class _PostListState extends State<PostList> {
   void _showSnackBar(BuildContext context, String message) {
     final snackBar = SnackBar(
       content: Text(message),
-      duration: Duration(seconds: 10),
+      duration: Duration(seconds: 3),
     );
 
     _scaffoldKey.currentState.showSnackBar(snackBar);

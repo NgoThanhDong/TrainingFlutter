@@ -85,6 +85,12 @@ class _CreatePostState extends State<CreatePost> {
     _contentController.text = post.content;
     _urlController.text = post.url;
 
+    // Keyboard cursor should go to end of line
+    _titleController.selection = TextSelection.collapsed(offset: _titleController.text.length);
+    _descriptionController.selection = TextSelection.collapsed(offset: _descriptionController.text.length);
+    _contentController.selection = TextSelection.collapsed(offset: _contentController.text.length);
+    _urlController.selection = TextSelection.collapsed(offset: _urlController.text.length);
+
     if (post.author != '') authorDropdownValue = post.author;
     if (post.postType != '') postTypeDropdownValue = post.postType;
     if (post.category != '') categoryDropdownValue = post.category;
