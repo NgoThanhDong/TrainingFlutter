@@ -6,6 +6,7 @@ class QueryMutation {
         categories {
           edges {
             node {
+              id
               name
             }
           }
@@ -20,6 +21,7 @@ class QueryMutation {
         tags {
           edges {
             node {
+              id
               name
             }
           }

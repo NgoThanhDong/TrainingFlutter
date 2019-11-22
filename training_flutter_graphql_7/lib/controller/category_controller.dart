@@ -4,25 +4,26 @@ import 'package:training_flutter/service/graphql_conf.dart';
 import 'package:training_flutter/service/query_mutation.dart';
 
 class CategoryController {
-
-   static getCategories() async {
-     GraphQLConfiguration graphQLConfiguration = GraphQLConfiguration();
-     GraphQLClient _client = graphQLConfiguration.clientToQuery();
-     QueryMutation queryMutation = QueryMutation();
-
-     QueryResult result = await _client.query(
-       QueryOptions(document: queryMutation.getCategories()),
-     );
-
-     if (!result.hasErrors) {
-       int categoriesLen = result.data['categories']['edges'].length;
-
-       for (int i = 0; i < categoriesLen; i++) {
-         CATEGORIES.add(
-           result.data['categories']['edges'][i]['node']['name']
-         );
-       }
-     }
+  
+  static getCategories() async {
+    GraphQLConfiguration graphQLConfiguration = GraphQLConfiguration();
+    GraphQLClient _client = graphQLConfiguration.clientToQuery();
+    QueryMutation queryMutation = QueryMutation();
+    
+    QueryResult result = await _client.query(
+      QueryOptions(document: queryMutation.getCategories()),
+    );
+    
+    if (!result.hasErrors) {
+      int categoriesLen = result.data['categories']['edges'].length;
+      
+      for (int i = 0; i < categoriesLen; i++) {
+        CATEGORIES.add({
+          'id': result.data['categories']['edges'][i]['node']['id'],
+          'name': result.data['categories']['edges'][i]['node']['name'],
+        });
+      }
+    }
   }
   
 }

@@ -878,8 +878,13 @@ class _PostListState extends State<PostList> {
     await TagController.getTags();
 
     setState(() {
-      _categories = _categories..addAll(CATEGORIES);
-      _tags = _tags..addAll(TAGS);
+      for(var category in CATEGORIES) {
+        _categories.add(category['name']);
+      }
+  
+      for(var tag in TAGS) {
+        _tags.add(tag['name']);
+      }
     });
   }
 
