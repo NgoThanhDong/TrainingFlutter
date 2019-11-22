@@ -39,10 +39,16 @@
 			6.2.3. Build no data animation			
 			6.2.4. Use Hero animation	
 			6.2.5. Flutter page route transition
-	7. Call api (Restfull API or Graphql)					
-		7.1. Call query (GET)				
-		7.2. Call mutation (POST/PUT/DELETE)				
-		7.3. Upload image				
-		7.4. Display image from URL				
+	7. Call API (use GraphQL)					
+		7.1. GraphQL with Flutter				
+		7.2. Call query				
+			7.2.1. The basic configuration to use GraphQL			
+			7.2.2. Create models, controllers, class contain the queries and mutation			
+			7.2.3. Refactoring the screen files			
+			7.2.4. Dislay GraphQL data on the screens			
+			7.2.5. Implement infinite scrolling in Posts ListView			
+		7.3. Call mutation				
+		7.4. Upload image				
+		7.5. Display image from URL					
 	
 ![](art/image.gif)
