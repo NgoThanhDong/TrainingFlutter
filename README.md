@@ -37,7 +37,8 @@
 			6.2.1. Learn about Animations in Flutter			
 			6.2.2. Build loading animation			
 			6.2.3. Build no data animation			
-			6.2.4. Use Hero animation			
+			6.2.4. Use Hero animation	
+			6.2.5. Flutter page route transition
 	7. Call api (Restfull API or Graphql)					
 		7.1. Call query (GET)				
 		7.2. Call mutation (POST/PUT/DELETE)				
