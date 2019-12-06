@@ -11,7 +11,7 @@ class CategoryController {
     QueryMutation queryMutation = QueryMutation();
     
     QueryResult result = await _client.query(
-      QueryOptions(document: queryMutation.getCategories()),
+      QueryOptions(document: queryMutation.getCategories),
     );
     
     if (!result.hasErrors) {

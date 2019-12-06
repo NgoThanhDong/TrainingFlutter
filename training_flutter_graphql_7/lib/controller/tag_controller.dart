@@ -11,7 +11,7 @@ class TagController {
     QueryMutation queryMutation = QueryMutation();
     
     QueryResult result = await _client.query(
-      QueryOptions(document: queryMutation.getTags()),
+      QueryOptions(document: queryMutation.getTags),
     );
     
     if (!result.hasErrors) {

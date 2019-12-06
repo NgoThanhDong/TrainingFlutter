@@ -1,11 +1,14 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_multiselect/flutter_multiselect.dart';
 import 'package:training_flutter/theme/accent_color_override.dart';
 import 'package:training_flutter/theme/color.dart';
-import 'package:training_flutter/model_grapql/post.dart';
+import 'package:training_flutter/model_graphql/post.dart';
+import 'package:training_flutter/global.dart';
+import 'package:slugify/slugify.dart';
+import 'package:training_flutter/controller/post_controller.dart';
+
 
 class CreatePost extends StatefulWidget {
   
@@ -13,34 +16,28 @@ class CreatePost extends StatefulWidget {
   final Post post;
   
   CreatePost(this.appBarTitle, this.post);
-
+  
   @override
   _CreatePostState createState() => _CreatePostState(this.appBarTitle, this.post);
 }
 
 class _CreatePostState extends State<CreatePost> {
-
+  
   String appBarTitle;
   Post post;
   _CreatePostState(this.appBarTitle, this.post);
-
-
+  
   /// ATTRIBUTE
-
+  
   final _formKey = new GlobalKey<FormState>(); // form key
-
-  // List object of Author, Post Type, Category, Tag
-  final List<String> _author = ['Author 1', 'Author 2', 'Author 3'];
-  final List<String> _postType = ['News', 'Blog'];
-  final _category = ['Game', 'Phần Mềm', 'Học Lập Trình'];
-  final _tags = ['Hành động', 'Thể thao', 'Chiến thuật', 'Nhập vai', 'Lập trình', 'Học tập', 'Công cụ', 'Python', 'Java'];
-
-  // Author, Post Type, Category, Tags dropdown value
-  String authorDropdownValue;
-  String postTypeDropdownValue;
-  String categoryDropdownValue;
-  List tagsDropdownValue;
-
+  
+  final List<String> _postType = ['News', 'Blog']; // List object of PostType
+  
+  // Post Type, Category, Tags dropdown value
+  String _postTypeDropdownValue;
+  String _categoryDropdownValue;
+  List _tagsDropdownValue;
+  
   // Image
   File _image; // File select image from Camera/Gallery
   Widget _imageError; // Error message for image
@@ -53,48 +50,30 @@ class _CreatePostState extends State<CreatePost> {
     ),
   );
   Widget _imageSelected;
-
+  
   // Controller for title, description, content, url
   TextEditingController _titleController = TextEditingController();
   TextEditingController _descriptionController = TextEditingController();
   TextEditingController _contentController = TextEditingController();
-  TextEditingController _urlController = TextEditingController();
-
+  
+  bool _autoValidateTags = false;
+  
+  @override
+  void initState() {
+    _getInitData();
+    super.initState();
+  }
+  
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     _contentController.dispose();
-    _urlController.dispose();
     super.dispose();
   }
-
+  
   @override
   Widget build(BuildContext context) {
-
-    // Get data fields of the post
-    _titleController.text = post.title;
-    _descriptionController.text = post.description;
-    _contentController.text = post.content;
-    _urlController.text = post.url;
-
-    // Keyboard cursor should go to end of line
-    _titleController.selection = TextSelection.collapsed(offset: _titleController.text.length);
-    _descriptionController.selection = TextSelection.collapsed(offset: _descriptionController.text.length);
-    _contentController.selection = TextSelection.collapsed(offset: _contentController.text.length);
-    _urlController.selection = TextSelection.collapsed(offset: _urlController.text.length);
-
-    if (post.author != '') authorDropdownValue = post.author;
-    if (post.postType != '') postTypeDropdownValue = post.postType;
-    if (post.category != '') categoryDropdownValue = post.category;
-    if (post.tags != '') tagsDropdownValue = post.tags.split(', ');
-    if (post.image != '') {
-      _imageSelected = Image.memory(
-        Base64Decoder().convert(post.image),
-        fit: BoxFit.contain,
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text(appBarTitle),
@@ -113,7 +92,12 @@ class _CreatePostState extends State<CreatePost> {
                   color: kPostBrown900,
                   child: TextFormField(
                     controller: _titleController,
+                    maxLength: 64,
                     decoration: InputDecoration(labelText: 'Title'),
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.done,
+                    minLines: 1,
+                    maxLines: 3,
                     validator: (value) {
                       if (value.isEmpty) {
                         return 'Please enter some text';
@@ -122,41 +106,43 @@ class _CreatePostState extends State<CreatePost> {
                     },
                     onChanged: (text) {
                       post.title = _titleController.text;
+                      _autoValidateTags = true;
                     },
                   ),
                 ),
-
+                
                 SizedBox(height: 10),
-
+                
                 // Select Image
                 GestureDetector(
                   child: Center(
                     child: post.image == ''
-                      ? _noImageSelected
-                      : Container(
-                          width: 360.0,
-                          height: 240.0,
-                          child: _imageSelected,
-                        ),
+                        ? _noImageSelected
+                        : Container(
+                      width: 360.0,
+                      height: 240.0,
+                      child: _imageSelected,
+                    ),
                   ),
                   onTap: () {
-                    _showDialog();
+                    _showImageDialog();
                   },
                 ),
-
+                
                 // Validation image
                 Container(
                   padding: EdgeInsets.only(top: 5),
                   child: _imageError,
                 ),
-
+                
                 SizedBox(height: 10),
-
+                
                 // Description Text Field
                 AccentColorOverride(
                   color: kPostBrown900,
-                  child:TextFormField(
+                  child: TextFormField(
                     controller: _descriptionController,
+                    maxLength: 300,
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.done,
                     minLines: 3,
@@ -176,9 +162,9 @@ class _CreatePostState extends State<CreatePost> {
                     },
                   ),
                 ),
-
+                
                 SizedBox(height: 10),
-
+                
                 // Content Text Field
                 AccentColorOverride(
                   color: kPostBrown900,
@@ -203,58 +189,21 @@ class _CreatePostState extends State<CreatePost> {
                     },
                   ),
                 ),
-
+                
                 SizedBox(height: 10),
-
-                // Author dropdown button
-                ButtonTheme(
-                  alignedDropdown: true,
-                  child: DropdownButtonFormField<String>(
-                    value: authorDropdownValue,
-                    hint: Text(
-                      'Select author',
-                      style: TextStyle(fontSize: 18.0),
-                    ),
-                    onChanged: (String newValue) {
-                      setState(() {
-                        authorDropdownValue = newValue;
-                        post.author = authorDropdownValue;
-                      });
-                    },
-                    validator: (String value) {
-                      if (value?.isEmpty ?? true) {
-                        return 'Please select one option';
-                      }
-                      return null;
-                    },
-                    items: _author.map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(
-                          value,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onSaved: (val) => setState(() => post.author = val),
-                  ),
-                ),
-
-                SizedBox(height: 10),
-
+                
                 // Post type dropdown button
                 ButtonTheme(
                   alignedDropdown: true,
                   child: DropdownButtonFormField<String>(
-                    value: postTypeDropdownValue,
+                    value: _postTypeDropdownValue,
                     hint: Text(
                       'Select post type',
                       style: TextStyle(fontSize: 18.0),
                     ),
                     onChanged: (String newValue) {
                       setState(() {
-                        postTypeDropdownValue = newValue;
-                        post.postType = postTypeDropdownValue;
+                        _postTypeDropdownValue = newValue;
                       });
                     },
                     validator: (String value) {
@@ -272,53 +221,50 @@ class _CreatePostState extends State<CreatePost> {
                         ),
                       );
                     }).toList(),
-                    onSaved: (val) => setState(() => post.postType = val),
                   ),
                 ),
-
+                
                 SizedBox(height: 10),
-
+                
                 // Category dropdown button
                 ButtonTheme(
                   alignedDropdown: true,
-                  child: DropdownButtonFormField<String>(
-                    value: categoryDropdownValue,
+                  child: DropdownButtonFormField<dynamic>(
+                    value: _categoryDropdownValue,
                     hint: Text(
                       'Select category',
                       style: TextStyle(fontSize: 18.0),
                     ),
-                    onChanged: (String newValue) {
+                    onChanged: (var newValue) {
                       setState(() {
-                        categoryDropdownValue = newValue;
-                        post.category = categoryDropdownValue;
+                        _categoryDropdownValue = newValue;
                       });
                     },
-                    validator: (String value) {
+                    validator: (var value) {
                       if (value?.isEmpty ?? true) {
                         return 'Please select one option';
                       }
                       return null;
                     },
-                    items: _category.map<DropdownMenuItem<String>>((value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
+                    items: CATEGORIES.map<DropdownMenuItem<dynamic>>((var category) {
+                      return DropdownMenuItem<dynamic>(
+                        value: category['id'],
                         child: Text(
-                          value,
+                          category['name'],
                           overflow: TextOverflow.ellipsis,
                         ),
                       );
                     }).toList(),
-                    onSaved: (val) => setState(() => post.category = val),
                   ),
                 ),
-
+                
                 SizedBox(height: 10),
-
+                
                 // Tags dropdown button
                 Container(
                   child: MultiSelect(
-                    initialValue: tagsDropdownValue,
-                    autovalidate: false,
+                    initialValue: _tagsDropdownValue,
+                    autovalidate: _autoValidateTags,
                     titleText: 'Select tags',
                     validator: (value) {
                       if (value == null || value.length == 0) {
@@ -331,45 +277,18 @@ class _CreatePostState extends State<CreatePost> {
                     valueField: 'value',
                     filterable: false,
                     required: true,
-                    value: tagsDropdownValue,
+                    value: _tagsDropdownValue,
                     onSaved: (value) {
                       if (value == null) return;
                       setState(() {
-                        tagsDropdownValue = value;
+                        _tagsDropdownValue = value;
                       });
-                      post.tags = this.tagsDropdownValue.toString();
                     },
                   ),
                 ),
-
-                SizedBox(height: 10),
-
-                // Url Text Field
-                AccentColorOverride(
-                  color: kPostBrown900,
-                  child: TextFormField(
-                    controller: _urlController,
-                    decoration: InputDecoration(labelText: 'Url'),
-                    validator: (value) {
-                      if (value.isEmpty) {
-                        return 'Please enter some text';
-                      }
-
-                      final _urlPattern = r"(https?|http)://([-A-Z0-9.]+)(/[-A-Z0-9+&@#/%=~_|!:,.;]*)?(\?[A-Z0-9+&@#/%=~_|!:‌​,.;]*)?";
-                      final _result = new RegExp(_urlPattern, caseSensitive: false).firstMatch(value);
-                      if (_result == null) {
-                        return 'Please enter a valid url';
-                      }
-                      return null;
-                    },
-                    onChanged: (text) {
-                      post.url = _urlController.text;
-                    },
-                  ),
-                ),
-
+                
                 SizedBox(height: 20),
-
+                
                 // Create post button
                 SizedBox(
                   width: double.infinity,
@@ -392,19 +311,19 @@ class _CreatePostState extends State<CreatePost> {
       ),
     );
   }
-
+  
   // Data source of Tags dropdown
   List _dataSourceTags(){
     List _tagsDS = new List();
-    for(int i=0; i < _tags.length; i++){
+    for (var tag in TAGS){
       _tagsDS.add({
-        "display": _tags[i],
-        "value": _tags[i],
+        'display': tag['name'],
+        'value': tag['id'],
       });
     }
     return _tagsDS;
   }
-
+  
   // Get image from source (Camera/Gallery)
   Future _getImage(ImageSource src) async {
     var image = await ImagePicker.pickImage(source: src);
@@ -416,24 +335,23 @@ class _CreatePostState extends State<CreatePost> {
           _image,
           fit: BoxFit.contain,
         );
-
-        List<int> imageBytes = image.readAsBytesSync();
-        post.image = base64Encode(imageBytes);
+        
+        post.image = _image.path;
       }
     });
   }
-
+  
   // Show Camera/Gallery dialog
-  void _showDialog() {
+  void _showImageDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context){
+      builder: (context){
         return SimpleDialog(
           title: Text('Camera/Gallery'),
           children: <Widget>[
             SimpleDialogOption(
               onPressed: () async {
-                Navigator.pop(context); //close the dialog box
+                Navigator.pop(context);   // close the dialog box
                 _getImage(ImageSource.gallery);
               },
               child: const Text(
@@ -443,7 +361,7 @@ class _CreatePostState extends State<CreatePost> {
             ),
             SimpleDialogOption(
               onPressed: () async {
-                Navigator.pop(context); //close the dialog box
+                Navigator.pop(context);
                 _getImage(ImageSource.camera);
               },
               child: const Text(
@@ -456,9 +374,9 @@ class _CreatePostState extends State<CreatePost> {
       },
     );
   }
-
+  
   void _saveForm() async {
-    if(post.image == '') {
+    if (post.image == '') {
       setState(() {
         _imageError = new Text(
           '    Please choose a image',
@@ -467,7 +385,7 @@ class _CreatePostState extends State<CreatePost> {
             fontSize: 12,
           ),
         );
-
+        
         _noImageSelected = Container(
           width: 360.0,
           height: 240.0,
@@ -483,36 +401,87 @@ class _CreatePostState extends State<CreatePost> {
     } else {
       var form = _formKey.currentState;
       if (form.validate()) {
-//        form.save();
-//        Navigator.pop(context, true);
-//
-//        int result;
-//        post.tags = post.tags.substring(1, post.tags.length - 1);
-//        if(post.id != null) { // Case 1: Update operation
-//          result = await postQuery.updatePost(post);
-//        } else { // Case 2: Insert Operation
-//          post.createdDate = DateFormat("yyyy-MM-dd HH:mm").format(DateTime.now());
-//          result = await postQuery.insertPost(post);
-//        }
-//
-//        if (result != 0) {  // Success
-//          _showAlertDialog('Status', 'Post Saved Successfully');
-//        } else {  // Failure
-//          _showAlertDialog('Status', 'Problem Saving Note');
-//        }
+        form.save();
+
+        post.title = post.title.trim();
+        post.description = post.description.trim();
+        post.content = post.content.trim();
+        post.author = USER_LOGIN['id'];
+        post.postType = _postTypeDropdownValue.toLowerCase();
+        post.categoryId = _categoryDropdownValue;
+        post.tagsId = _tagsDropdownValue;
+        post.url = Slugify(post.title);
+
+        // Upload image
+        if (_image != null) {
+          String resultUploadImage = await PostController.uploadImage(_image);
+
+          if (resultUploadImage.contains('Problem Uploading Image')){
+            _showResultAlertDialog('Upload Image', resultUploadImage);
+            return;
+          } else {
+            post.image = resultUploadImage;
+          }
+        }
+
+        // Create / Edit post
+        if (post.id == null) {  // Case 1:  Create post
+          String resultCreatePost = await PostController.createPost(post);
+  
+          if (resultCreatePost.contains('Problem Creating Post')) {
+            _showResultAlertDialog('Create Post', resultCreatePost);
+          } else {
+            Navigator.pop(context, true);
+            _showResultAlertDialog('Create Post', 'Post Created Successfully');
+          }
+        } else {  // Case 2: Edit post
+          String resultEditPost = await PostController.editPost(post);
+  
+          if (resultEditPost.contains('Problem Editing Post')) {
+            _showResultAlertDialog('Edit Post', resultEditPost);
+          } else {
+            Navigator.pop(context, true);
+            _showResultAlertDialog('Edit Post', 'Post Edited Successfully');
+          }
+        }
       }
     }
   }
-
-  void _showAlertDialog(String title, String message) {
+  
+  void _showResultAlertDialog(String title, String message) {
     AlertDialog alertDialog = AlertDialog(
       title: Text(title),
-      content: Text(message),
+      content: SingleChildScrollView(
+        child: Text(message),
+      ),
     );
     showDialog(
-      context: context,
-      builder: (_) => alertDialog
+        context: context,
+        builder: (_) => alertDialog
     );
   }
-
+  
+  void _getInitData() {
+    // Get data fields of the post
+    _titleController.text = post.title;
+    _descriptionController.text = post.description;
+    _contentController.text = post.content;
+    
+    // Keyboard cursor should go to end of line
+    _titleController.selection = TextSelection.collapsed(offset: _titleController.text.length);
+    _descriptionController.selection = TextSelection.collapsed(offset: _descriptionController.text.length);
+    _contentController.selection = TextSelection.collapsed(offset: _contentController.text.length);
+    
+    if (post.id != null) {
+      _postTypeDropdownValue = post.postType;
+      _categoryDropdownValue = post.categoryId;
+      _tagsDropdownValue = post.tagsId;
+      
+      _imageSelected = Image.network(
+        post.image,
+        fit: BoxFit.contain,
+      );
+    }
+  }
+  
 }

@@ -2,22 +2,60 @@ import "package:flutter/material.dart";
 import "package:graphql_flutter/graphql_flutter.dart";
 import 'package:training_flutter/global.dart';
 
-class GraphQLConfiguration {
-  static HttpLink httpLink = HttpLink(
-    uri: "${SERVER_NAME}graphql/"    // http://127.0.0.1:8000/graphql/
-  );
 
+class GraphQLConfiguration {
+  
+  static HttpLink httpLink = HttpLink(
+    uri: '${SERVER_NAME}graphql/',
+  );
+  
   ValueNotifier<GraphQLClient> client = ValueNotifier(
     GraphQLClient(
+      cache: OptimisticCache(
+          dataIdFromObject: typenameDataIdFromObject
+      ),
       link: httpLink,
-      cache: OptimisticCache(dataIdFromObject: typenameDataIdFromObject),
     ),
   );
-
+  
   GraphQLClient clientToQuery() {
     return GraphQLClient(
+      cache: OptimisticCache(
+          dataIdFromObject: typenameDataIdFromObject
+      ),
       link: httpLink,
-      cache: OptimisticCache(dataIdFromObject: typenameDataIdFromObject),
+    );
+  }
+  
+}
+
+class GraphQLConfigurationAuth {
+  
+  static HttpLink httpLink = HttpLink(
+    uri: '${SERVER_NAME}graphql/',
+  );
+  
+  static final AuthLink authLink = AuthLink(
+    getToken: () async => 'JWT $ACCESS_TOKEN',
+  );
+  
+  static final Link link = authLink.concat(httpLink);
+  
+  ValueNotifier<GraphQLClient> client = ValueNotifier(
+    GraphQLClient(
+      cache: OptimisticCache(
+          dataIdFromObject: typenameDataIdFromObject
+      ),
+      link: link,
+    ),
+  );
+  
+  GraphQLClient clientToQuery() {
+    return GraphQLClient(
+      cache: OptimisticCache(
+          dataIdFromObject: typenameDataIdFromObject
+      ),
+      link: link,
     );
   }
 }

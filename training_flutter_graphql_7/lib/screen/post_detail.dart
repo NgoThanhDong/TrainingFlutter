@@ -1,7 +1,7 @@
 import 'package:scoped_model/scoped_model.dart';
 import 'package:flutter/material.dart';
 import 'package:training_flutter/main_models/main_model.dart';
-import 'package:training_flutter/model_grapql/post.dart';
+import 'package:training_flutter/model_graphql/post.dart';
 import 'package:intl/intl.dart';
 
 class PostDetail extends StatelessWidget {
@@ -35,6 +35,8 @@ class PostDetail extends StatelessWidget {
                     post.title,
                     style: Theme.of(context).textTheme.title,
                   ),
+  
+                  SizedBox(height: 10.0),
 
                   // Author and create date
                   Align(
@@ -55,6 +57,10 @@ class PostDetail extends StatelessWidget {
                           post.image,
                           fit: BoxFit.contain,
                         ),
+//                        child: Image.memory(
+//                          Base64Decoder().convert(post.image),
+//                          fit: BoxFit.contain,
+//                        ),
                       ),
                     ),
                   ),
@@ -80,13 +86,13 @@ class PostDetail extends StatelessWidget {
                         constraints: BoxConstraints(),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         child: Text(
-                          post.category,
+                          post.categoryName,
                           style: TextStyle(
                             color: Colors.blueAccent,
                             decoration: TextDecoration.underline,
                           ),
                         ),
-                        onPressed: () => _categoryPressed(post.category, context, model),
+                        onPressed: () => _categoryPressed(post.categoryName, context, model),
                       ),
                     ],
                   ),
@@ -106,7 +112,7 @@ class PostDetail extends StatelessWidget {
 
   // Create tags from data
   List<Widget> _createTags(BuildContext context, MainModel model){
-    List _tagsData = post.tags.split(', ');
+    List _tagsData = post.tagsName.split(', ');
     List tags = new List<Widget>();
 
     tags.add(

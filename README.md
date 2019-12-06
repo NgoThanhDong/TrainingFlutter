@@ -48,7 +48,10 @@
 			7.2.4. Dislay GraphQL data on the screens			
 			7.2.5. Implement infinite scrolling in Posts ListView			
 		7.3. Call mutation				
-		7.4. Upload image				
-		7.5. Display image from URL					
-	
+			7.3.1. Authentication and Login account			
+			7.3.2. Get the logged in user information (query)			
+			7.3.3. Upload image			
+			7.3.4. Create a post 			
+			7.3.5. Edit a post			
+			7.3.6. Delete a post			
 ![](art/image.gif)

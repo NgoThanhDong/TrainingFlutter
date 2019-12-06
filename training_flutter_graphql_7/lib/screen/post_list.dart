@@ -14,7 +14,11 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:training_flutter/controller/category_controller.dart';
 import 'package:training_flutter/controller/tag_controller.dart';
 import 'package:training_flutter/service/query_mutation.dart';
-import 'package:training_flutter/model_grapql/post.dart';
+import 'package:training_flutter/model_graphql/post.dart';
+import 'package:training_flutter/component/login_alert_dialog.dart';
+import 'package:training_flutter/component/account_drawer.dart';
+import 'package:training_flutter/controller/user_controller.dart';
+import 'package:training_flutter/controller/post_controller.dart';
 
 
 class PostList extends StatefulWidget {
@@ -61,10 +65,14 @@ class _PostListState extends State<PostList> {
 
   ScrollController _scrollController = new ScrollController();
 
+  bool _loginFlag = false;   // check user successfully logged in
+  Set<Post> _deletePosts = new Set<Post>();    // List containing the posts has been deleted
+  
+
   @override
   void initState() {
-    super.initState();
     _getInitData();
+    super.initState();
   }
 
   @override
@@ -88,8 +96,9 @@ class _PostListState extends State<PostList> {
 
         return Scaffold(
           key: _scaffoldKey,
-          appBar: _buildAppBar(context, model),
-          body: _buildBody(context, model),
+          appBar: _buildAppBar(model),
+          drawer: AccountDrawer(),
+          body: _buildBody(model),
           resizeToAvoidBottomInset: false,
         );
       }
@@ -97,7 +106,7 @@ class _PostListState extends State<PostList> {
   }
 
   /// APP BAR
-  Widget _buildAppBar(BuildContext context, MainModel model) {
+  Widget _buildAppBar(MainModel model) {
     return AppBar(
       centerTitle: true,
       title: _appBarTitle,
@@ -292,14 +301,14 @@ class _PostListState extends State<PostList> {
   }
 
   /// BODY
-  Widget _buildBody(BuildContext context, MainModel model) {
+  Widget _buildBody(MainModel model) {
     return Container(
       padding: const EdgeInsets.only(top: 10.0),
       child: Column(
         children: <Widget>[
           // Post list
           Expanded(
-            child: _buildPostsQuery(context, model),
+            child: _buildPostsQuery(model),
           ),
 
           // Create post button
@@ -326,15 +335,14 @@ class _PostListState extends State<PostList> {
   }
 
   /// Create posts query to get posts data from server
-  Widget _buildPostsQuery(BuildContext context, MainModel model) {
+  Widget _buildPostsQuery(MainModel model) {
     QueryMutation queryMutation = QueryMutation();
-    int _nRepositories = 3;
-    
+  
     return Query(
       options: QueryOptions(
-        document: queryMutation.getPosts(),
+        document: queryMutation.getPosts,
         variables: {
-          'nRepositories': _nRepositories,
+          'nRepositories': REPOSITORIES,
         },
       ),
       // Just like in apollo refetch() could be used to manually trigger a refetch
@@ -343,12 +351,12 @@ class _PostListState extends State<PostList> {
         if (result.loading && result.data == null) {
           return _buildLoading();
         }
-
+  
         if (result.hasErrors) {
-          String errors = result.errors.join(', \n');
-          return _buildErrorPostsQuery(context, errors);
+          String errors = result.errors.join(', \n\n');
+          return _buildErrorPostsQuery(errors);
         }
-
+  
         if (result.data == null) {
           return _buildNoData();
         }
@@ -361,7 +369,7 @@ class _PostListState extends State<PostList> {
         // This is returned by the GraphQL API for pagination purpose
         final Map pageInfo = result.data['posts']['pageInfo'];
         final String fetchMoreCursor = pageInfo['endCursor'];
-        
+
         final int totalCount = result.data['posts']['totalCount']; // total count items in post list
 
         FetchMoreOptions opts = FetchMoreOptions(
@@ -412,7 +420,7 @@ class _PostListState extends State<PostList> {
             }
           });
 
-        return _buildPostList(context, result.loading);
+        return _buildPostList(result.loading);
       }
     );
   }
@@ -477,19 +485,19 @@ class _PostListState extends State<PostList> {
               ),
             ),
             Expanded(
-                flex: 4,
-                child: FlareActor(
-                  'assets/nodata.flr',
-                  animation: 'idle',
-                )
-            )
+              flex: 4,
+              child: FlareActor(
+                'assets/nodata.flr',
+                animation: 'idle',
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildErrorPostsQuery(BuildContext context, String errors) {
+  
+  Widget _buildErrorPostsQuery(String errors) {
     return Card(
       elevation: 4.0,
       margin: EdgeInsets.all(10.0),
@@ -535,7 +543,7 @@ class _PostListState extends State<PostList> {
   }
   
   /// Fill posts data into list view
-  Widget _buildPostList(BuildContext context, bool loading) {
+  Widget _buildPostList(bool loading) {
     if (_postListData.length == 0) {
       return _buildNoData();
     }
@@ -565,8 +573,11 @@ class _PostListState extends State<PostList> {
                     
                         PopupMenuButton(
                           padding: EdgeInsets.zero,
-                          icon: Icon(Icons.more_vert),
-                          onSelected: (value) => _showMenuSelection(context, value, post),
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: (USERNAME != '' && post.author == USERNAME) ? kPostPink400 : kPostBrown900,
+                          ),
+                          onSelected: (value) => _showMenuSelection(value, post),
                           itemBuilder: (context) => <PopupMenuEntry<String>>[
                             PopupMenuItem<String>(
                               value: 'Edit',
@@ -670,9 +681,7 @@ class _PostListState extends State<PostList> {
               );
             },
           ),
-    
-        SizedBox(height: 10.0),
-    
+        
         if (loading)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -680,13 +689,11 @@ class _PostListState extends State<PostList> {
               CircularProgressIndicator(),
             ],
           ),
-    
-        SizedBox(height: 10.0),
       ],
     );
   }
 
-
+  
   /// EVENT PRESS BUTTON
 
   void _searchPressed(model) {
@@ -762,10 +769,13 @@ class _PostListState extends State<PostList> {
   }
 
   void _createPostPressed() {
-    final Post post = new Post('', '', '', '', '', '', '', '', '', '');
-    _navigateToDetail('Create Post', post);
+    if(!_loginFlag){
+      _showLoginDialog();
+    } else {
+      final Post post = new Post('', '', '', '', '', '', '', '', [], '', '', '');
+      _navigateToDetail('Create Post', post);
+    }
   }
-
   
   // Redirect to Create/Edit post screen and update all post list
   void _navigateToDetail(String title, Post post) async {
@@ -775,6 +785,7 @@ class _PostListState extends State<PostList> {
     );
 
     if (result == true) {
+      _reloadPosts();
     }
   }
 
@@ -782,46 +793,77 @@ class _PostListState extends State<PostList> {
   List<Post> _searchPosts(String searchText, String categorySelect, String tagSelect, String postTypeSelect) {
     List<Post> dummySearchList = List<Post>();
     dummySearchList.addAll(_allPosts);
-
+  
     if(searchText != '') {
       dummySearchList = dummySearchList.where((Post p) {
         return p.title.toLowerCase().contains(searchText.toLowerCase());
       }).toList();
     }
-
+  
     if(categorySelect != '' && categorySelect != 'All') {
       dummySearchList = dummySearchList.where((Post p) {
-        return p.category == categorySelect;
+        return p.categoryName == categorySelect;
       }).toList();
     }
-
+  
     if(tagSelect != '' && tagSelect != 'All') {
       dummySearchList = dummySearchList.where((Post p) {
-        return p.tags.contains(tagSelect);
+        return p.tagsName.contains(tagSelect);
       }).toList();
     }
-
+  
     if(postTypeSelect != '') {
       dummySearchList = dummySearchList.where((Post p) {
         return p.postType == postTypeSelect;
       }).toList();
     }
-
+  
     return dummySearchList;
   }
 
-  // Delete or edit the post
-  void _showMenuSelection(BuildContext context, String value, Post post) {
-//    if (value == 'Edit') {
-//      Post postTemp = new Post.withId(post.id, post.title, post.image, post.description,
-//        post.content, post.author, post.postType, post.category, post.tags, post.url, post.createdDate);
-//      _navigateToDetail('Edit Post', postTemp);
-//    } else {
-//      _showDeleteDialog(context, post);
-//    }
+  void _showOwnershipDialog() {
+    showDialog(
+      context: context,
+      builder: (context){
+        return SimpleDialog(
+          title: Text('Notification of ownership!'),
+          children: <Widget>[
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.pop(context); // close the dialog box
+              },
+              child: const Text(
+                "You don't have permission to edit and delete this post.",
+                style: TextStyle(fontSize: 18.0),
+              ),
+            ),
+          ],
+        );
+      }
+    );
   }
 
-  void _showSnackBar(BuildContext context, String message) {
+  // Delete or edit the post
+  void _showMenuSelection(String value, Post post) {
+    if (!_loginFlag){
+      _showLoginDialog();
+    } else {
+      if (post.author == USERNAME) {
+        if (value == 'Edit') {
+          Post postTemp = new Post.withId(post.id, post.title, post.image, post.description,
+              post.content, post.author, post.postType, post.categoryId, post.categoryName,
+              post.tagsId, post.tagsName, post.url, post.createdDate);
+          _navigateToDetail('Edit Post', postTemp);
+        } else {
+          _showDeleteDialog(post);
+        }
+      } else {
+        _showOwnershipDialog();
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
     final snackBar = SnackBar(
       content: Text(message),
       duration: Duration(seconds: 3),
@@ -830,27 +872,30 @@ class _PostListState extends State<PostList> {
     _scaffoldKey.currentState.showSnackBar(snackBar);
   }
 
-  void _deletePost(BuildContext context, Post post) async {
-//    int result = await postQuery.deletePost(post.id);
-//    if (result != 0) { // Success
-//      _showSnackBar(context, 'Post Deleted Successfully');
-//      updateListView();
-//    } else {  // Failure
-//      _showSnackBar(context, 'Problem Deleted Post');
-//    }
+  void _deletePost(Post post) async {
+    String resultDeletePost = await PostController.deletePost(post);
+  
+    if (resultDeletePost == null) {
+      _showSnackBar('Post Deleted Successfully');
+      setState(() {
+        _deletePosts.add(post);
+      });
+    } else {
+      _showSnackBar(resultDeletePost);
+    }
   }
 
-  void _showDeleteDialog(BuildContext context, Post post) {
+  void _showDeleteDialog(Post post) {
     showDialog(
       context: context,
-      builder: (BuildContext context){
+      builder: (context){
         return SimpleDialog(
           title: Text('Are you want to delete?'),
           children: <Widget>[
             SimpleDialogOption(
               onPressed: () async {
                 Navigator.pop(context); // close the dialog box
-                _deletePost(context, post);
+                _deletePost(post);
               },
               child: const Text(
                 'OK',
@@ -872,6 +917,47 @@ class _PostListState extends State<PostList> {
     );
   }
 
+  // Fill posts data from server into _allPosts list
+  void _fillPostList(List<dynamic> posts) {
+    int postsLen = posts.length;
+  
+    for (int i = 0; i < postsLen; i++) {
+      List tagsId = [];
+      String tagsName = '';
+      int tagsLen = posts[i]['node']['tags']['edges'].length;
+    
+      for (int j = 0; j < tagsLen; j++) {
+        tagsId.add(posts[i]['node']['tags']['edges'][j]['node']['id']);
+      
+        tagsName += posts[i]['node']['tags']['edges'][j]['node']['name'];
+        if (j != tagsLen - 1) {
+          tagsName += ', ';
+        }
+      }
+    
+      _allPosts.add(
+        Post.withId(
+          posts[i]['node']['id'],
+          posts[i]['node']['title'],
+          "${SERVER_NAME}public/images/" + posts[i]['node']['image'],
+          posts[i]['node']['description'],
+          posts[i]['node']['content'],
+          posts[i]['node']['author']['username'],
+          toBeginningOfSentenceCase(posts[i]['node']['postType'].toLowerCase()),
+          posts[i]['node']['category']['id'],
+          posts[i]['node']['category']['name'],
+          tagsId,
+          tagsName,
+          posts[i]['node']['url'],
+          posts[i]['node']['createdDate'],
+        )
+      );
+    }
+
+    _allPosts = _allPosts.difference(_deletePosts);
+  }
+
+
   // Get categories and tags data
   void _getInitData() async {
     await CategoryController.getCategories();
@@ -886,38 +972,40 @@ class _PostListState extends State<PostList> {
         _tags.add(tag['name']);
       }
     });
+
+      // Login "Author 1" account
+//    await UserController.login('Author 1', 'author1');
+//    USERNAME = 'Author 1';
+//    await UserController.getUser();
+//    setState(() {
+//      _loginFlag = true;
+//    });
   }
 
-  // Fill posts data from server into _allPosts list
-  void _fillPostList(List<dynamic> posts) {
-    int postsLen = posts.length;
 
-    for (int i = 0; i < postsLen; i++) {
-      String tags = '';
-      int tagsLen = posts[i]['node']['tags']['edges'].length;
+  void _showLoginDialog() async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return LoginAlertDialog();
+      },
+    );
+  
+    if (ACCESS_TOKEN.isNotEmpty) {
+      setState(() {
+        _loginFlag = true;
+      });
+    }
+  }
 
-      for (int j = 0; j < tagsLen; j++) {
-        tags += posts[i]['node']['tags']['edges'][j]['node']['name'];
-        if (j != tagsLen - 1) {
-          tags += ', ';
-        }
-      }
-
-      _allPosts.add(
-        Post.withId(
-          posts[i]['node']['id'],
-          posts[i]['node']['title'],
-          "${SERVER_NAME}public/images/" + posts[i]['node']['image'],
-          posts[i]['node']['description'],
-          posts[i]['node']['content'],
-          posts[i]['node']["author"]['username'],
-          toBeginningOfSentenceCase(posts[i]['node']['postType'].toLowerCase()),
-          posts[i]['node']['category']['name'],
-          tags,
-          posts[i]['node']['url'],
-          posts[i]['node']['createdDate'],
-        )
-      );
+  void _reloadPosts() async {
+    List<dynamic> _posts = await PostController.getPosts();
+  
+    if (_posts != null) {
+      setState(() {
+        _allPosts.clear();
+      });
+      _fillPostList(_posts);
     }
   }
 

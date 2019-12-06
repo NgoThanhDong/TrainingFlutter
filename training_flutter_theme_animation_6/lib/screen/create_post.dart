@@ -509,7 +509,7 @@ class _CreatePostState extends State<CreatePost> {
         if (result != 0) {  // Success
           _showAlertDialog('Status', 'Post Saved Successfully');
         } else {  // Failure
-          _showAlertDialog('Status', 'Problem Saving Note');
+          _showAlertDialog('Status', 'Problem Saving Post');
         }
       }
     }
